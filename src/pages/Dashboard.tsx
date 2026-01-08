@@ -16,18 +16,21 @@ const Dashboard = () => {
       title: "Today's Lesson",
       subtitle: "Mathematics · Chapter 5",
       variant: "default" as const,
+      onClick: () => navigate("/todays-lesson"),
     },
     {
       icon: FileText,
       title: "Practice Test",
       subtitle: "5 questions · 10 mins",
       variant: "default" as const,
+      onClick: () => navigate("/practice-test"),
     },
     {
       icon: RefreshCw,
       title: "Quick Revision",
       subtitle: "Review key concepts",
       variant: "default" as const,
+      onClick: () => navigate("/quick-revision"),
     },
     {
       icon: MessageSquare,
@@ -39,10 +42,10 @@ const Dashboard = () => {
   ];
 
   const subjects = [
-    { icon: "🌍", name: "Social Studies" },
-    { icon: "🔬", name: "Science" },
-    { icon: "📐", name: "Mathematics" },
-    { icon: "📚", name: "English" },
+    { icon: "🌍", name: "Social Studies", id: "social-studies" },
+    { icon: "🔬", name: "Science", id: "science" },
+    { icon: "📐", name: "Mathematics", id: "mathematics" },
+    { icon: "📚", name: "English", id: "english" },
   ];
 
   return (
@@ -78,13 +81,17 @@ const Dashboard = () => {
                 key={subject.name}
                 icon={subject.icon}
                 name={subject.name}
+                onClick={() => navigate(`/subject/${subject.id}`)}
               />
             ))}
           </div>
         </div>
 
         {/* NCERT Library */}
-        <NCERTLibraryCard classLevel="Class 6" />
+        <NCERTLibraryCard 
+          classLevel="Class 6" 
+          onClick={() => navigate("/library")}
+        />
       </main>
 
       {/* Floating Chat Button */}
