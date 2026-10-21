@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Clock, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { recordMockTestResult } from "@/lib/studentProgress";
+import { getUserProfile } from "@/lib/userProfile";
 
 interface Question {
   id: number;
@@ -19,6 +21,8 @@ const PracticeTest = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes
+  const hasRecordedResult = useRef(false);
+  const userProfile = getUserProfile();
 
   const questions: Question[] = [
     {
@@ -90,6 +94,16 @@ const PracticeTest = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  useEffect(() => {
+    if (!showResults || hasRecordedResult.current) {
+      return;
+    }
+
+    const score = calculateScore();
+    recordMockTestResult(score, questions.length);
+    hasRecordedResult.current = true;
+  }, [showResults]);
+
   if (!started) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -114,7 +128,7 @@ const PracticeTest = () => {
               Mathematics Quiz
             </h2>
             <p className="text-muted-foreground mb-6">
-              Test your knowledge on Fractions
+              {userProfile?.board ?? "Board"} · {userProfile?.state ?? "State"} · {userProfile?.preferredLanguage ?? "English"}
             </p>
 
             <div className="grid grid-cols-2 gap-4 mb-8 text-left">

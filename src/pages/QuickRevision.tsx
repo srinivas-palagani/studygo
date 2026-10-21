@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, ChevronRight, CheckCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getUserProfile } from "@/lib/userProfile";
+import { getDefaultLanguageByState, getPersonalizedSubjectContent } from "@/lib/learningContent";
+import { updateModuleProgress } from "@/lib/studentProgress";
 
 interface Concept {
   id: number;
@@ -16,6 +19,16 @@ const QuickRevision = () => {
   const navigate = useNavigate();
   const [currentConcept, setCurrentConcept] = useState<number | null>(null);
   const [reviewedConcepts, setReviewedConcepts] = useState<Set<number>>(new Set());
+  const userProfile = getUserProfile();
+  const learningState = userProfile?.state ?? "Karnataka";
+  const learningLanguage =
+    userProfile?.preferredLanguage ?? getDefaultLanguageByState(learningState);
+  const personalizedContent = getPersonalizedSubjectContent({
+    subjectId: "mathematics",
+    board: userProfile?.board ?? "CBSE",
+    state: learningState,
+    language: learningLanguage,
+  });
 
   const concepts: Concept[] = [
     {
@@ -76,12 +89,17 @@ const QuickRevision = () => {
   ];
 
   const markAsReviewed = (id: number) => {
-    setReviewedConcepts((prev) => new Set([...prev, id]));
+    setReviewedConcepts((prev) => {
+      const updated = new Set([...prev, id]);
+      updateModuleProgress(updated.size, concepts.length);
+      return updated;
+    });
     setCurrentConcept(null);
   };
 
   const resetProgress = () => {
     setReviewedConcepts(new Set());
+    updateModuleProgress(0, concepts.length);
   };
 
   const progressPercent = (reviewedConcepts.size / concepts.length) * 100;
@@ -159,7 +177,9 @@ const QuickRevision = () => {
           </button>
           <div className="flex-1">
             <h1 className="font-semibold text-foreground">Quick Revision</h1>
-            <p className="text-sm text-muted-foreground">Mathematics · Fractions</p>
+              <p className="text-sm text-muted-foreground">
+                {personalizedContent.board} · {learningState} · {learningLanguage}
+              </p>
           </div>
           <button
             onClick={resetProgress}
@@ -179,6 +199,9 @@ const QuickRevision = () => {
               {reviewedConcepts.size}/{concepts.length} reviewed
             </span>
           </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {personalizedContent.mockTestsLabel}
+          </p>
           <div className="w-full bg-muted rounded-full h-3">
             <div
               className="gradient-primary h-3 rounded-full transition-all duration-500"

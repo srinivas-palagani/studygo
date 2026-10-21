@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { saveUserProfile } from "@/lib/userProfile";
+import {
+  BOARD_OPTIONS,
+  CLASS_OPTIONS,
+  INDIA_STATES,
+  LANGUAGE_OPTIONS,
+  getDefaultLanguageByState,
+} from "@/lib/learningContent";
+import { getSubjectCatalog, type SubjectOption } from "@/lib/learningContentApi";
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
@@ -19,25 +28,51 @@ const ProfileSetup = () => {
   const [name, setName] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedBoard, setSelectedBoard] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<SubjectOption[]>([]);
 
-  const boards = ["CBSE", "ICSE", "STATE"];
-  const classes = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"];
-  const subjects = [
-    "Mathematics",
-    "Science",
-    "English",
-    "Social Studies",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Computer Science",
-  ];
+  const boards = BOARD_OPTIONS;
+  const classes = CLASS_OPTIONS;
+
+  useEffect(() => {
+    if (!selectedBoard) {
+      setAvailableSubjects([]);
+      setSelectedSubjects([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    getSubjectCatalog({ board: selectedBoard, state: selectedState }).then((subjects) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setAvailableSubjects(subjects);
+      setSelectedSubjects((prev) =>
+        prev.filter((subject) => subjects.some((item) => item.name === subject))
+      );
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBoard, selectedState, selectedClass]);
 
   const handleNext = () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
+      saveUserProfile({
+        name: name.trim(),
+        classLevel: selectedClass,
+        board: selectedBoard,
+        state: selectedState,
+        preferredLanguage: selectedState ? preferredLanguage : "English",
+        subjects: selectedSubjects,
+      });
       navigate("/dashboard");
     }
   };
@@ -118,7 +153,7 @@ const ProfileSetup = () => {
 
             <div>
               <Label className="text-foreground font-medium mb-3 block">Board</Label>
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {boards.map((board) => (
                   <button
                     key={board}
@@ -135,6 +170,50 @@ const ProfileSetup = () => {
                 ))}
               </div>
             </div>
+
+            <div>
+              <Label className="text-foreground font-medium">State</Label>
+              <Select
+                value={selectedState}
+                onValueChange={(value) => {
+                  setSelectedState(value);
+                  setPreferredLanguage(getDefaultLanguageByState(value));
+                }}
+              >
+                <SelectTrigger className="mt-2 bg-card border-border">
+                  <SelectValue placeholder="Select your state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIA_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedState ? (
+              <div>
+                <Label className="text-foreground font-medium">Preferred Language</Label>
+                <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
+                  <SelectTrigger className="mt-2 bg-card border-border">
+                    <SelectValue placeholder="Select learning language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGE_OPTIONS.map((language) => (
+                      <SelectItem key={language} value={language}>
+                        {language}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Language will stay English until a state is selected.
+              </p>
+            )}
           </div>
         )}
 
@@ -143,21 +222,26 @@ const ProfileSetup = () => {
           <div className="animate-fade-in">
             <Label className="text-foreground font-medium mb-3 block">Subjects</Label>
             <div className="flex flex-wrap gap-3 mb-4">
-              {subjects.map((subject) => (
+              {availableSubjects.map((subject) => (
                 <button
-                  key={subject}
-                  onClick={() => toggleSubject(subject)}
+                  key={subject.id}
+                  onClick={() => toggleSubject(subject.name)}
                   className={cn(
                     "py-2 px-4 rounded-lg font-medium transition-all duration-200 border",
-                    selectedSubjects.includes(subject)
+                    selectedSubjects.includes(subject.name)
                       ? "border-primary bg-primary/10 text-foreground"
                       : "border-border bg-card text-foreground hover:bg-secondary"
                   )}
                 >
-                  {subject}
+                  {subject.name}
                 </button>
               ))}
             </div>
+            {availableSubjects.length === 0 && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Select class and board to load subjects.
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">
               Select at least one subject
             </p>
@@ -177,7 +261,7 @@ const ProfileSetup = () => {
             className="flex-1"
             onClick={handleNext}
             disabled={
-              (step === 1 && !name) ||
+              (step === 1 && !name.trim()) ||
               (step === 2 && (!selectedClass || !selectedBoard)) ||
               (step === 3 && selectedSubjects.length === 0)
             }

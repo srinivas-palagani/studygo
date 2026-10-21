@@ -1,12 +1,25 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, Clock, CheckCircle, Play, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { getUserProfile } from "@/lib/userProfile";
+import { getDefaultLanguageByState, getPersonalizedSubjectContent } from "@/lib/learningContent";
+import { recordVideoWatch, updateModuleProgress } from "@/lib/studentProgress";
 
 const TodaysLesson = () => {
   const navigate = useNavigate();
   const [currentSection, setCurrentSection] = useState(0);
+  const userProfile = getUserProfile();
+  const learningState = userProfile?.state ?? "Karnataka";
+  const learningLanguage =
+    userProfile?.preferredLanguage ?? getDefaultLanguageByState(learningState);
+  const personalizedContent = getPersonalizedSubjectContent({
+    subjectId: "mathematics",
+    board: userProfile?.board ?? "CBSE",
+    state: learningState,
+    language: learningLanguage,
+  });
 
   const lesson = {
     subject: "Mathematics",
@@ -48,6 +61,10 @@ const TodaysLesson = () => {
   const completedSections = lesson.sections.filter((s) => s.completed).length;
   const progressPercent = (completedSections / lesson.sections.length) * 100;
 
+  useEffect(() => {
+    updateModuleProgress(completedSections, lesson.sections.length);
+  }, [completedSections, lesson.sections.length]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -61,7 +78,9 @@ const TodaysLesson = () => {
           </button>
           <div className="flex-1">
             <h1 className="font-semibold text-foreground">Today's Lesson</h1>
-            <p className="text-sm text-muted-foreground">{lesson.subject}</p>
+            <p className="text-sm text-muted-foreground">
+              {lesson.subject} · {personalizedContent.syllabusName}
+            </p>
           </div>
           <div className="text-right">
             <span className="text-sm font-medium text-primary">
@@ -83,6 +102,9 @@ const TodaysLesson = () => {
                 {lesson.topic}
               </h2>
               <p className="text-muted-foreground">{lesson.chapter}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                State: {learningState} · Language: {learningLanguage}
+              </p>
             </div>
           </div>
 
@@ -155,7 +177,12 @@ const TodaysLesson = () => {
 
         {/* Start/Continue Button */}
         <div className="sticky bottom-4">
-          <Button variant="gradient" size="xl" className="w-full">
+          <Button
+            variant="gradient"
+            size="xl"
+            className="w-full"
+            onClick={() => recordVideoWatch()}
+          >
             <Play className="w-5 h-5" />
             {completedSections > 0 ? "Continue Lesson" : "Start Lesson"}
           </Button>
